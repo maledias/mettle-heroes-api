@@ -60,3 +60,22 @@ def get_booking(conn: sqlite3.Connection, booking_id: int) -> dict:
 def list_bookings(conn: sqlite3.Connection, client_id: int) -> list[dict]:
     rows = conn.execute(BOOKING_QUERY + " WHERE b.client_id = ? ORDER BY b.id", (client_id,)).fetchall()
     return [to_dict(row) for row in rows]
+
+
+def overlapping_bookings(
+    conn: sqlite3.Connection, start: datetime, end: datetime, hero: str | None = None
+) -> list[dict]:
+    """Bookings that overlap [start, end). A booking that only touches the window does not overlap."""
+    query = BOOKING_QUERY + " WHERE b.start < ? AND b.end > ?"
+    params: list = [end.isoformat(timespec="minutes"), start.isoformat(timespec="minutes")]
+    if hero is not None:
+        query += " AND h.name = ?"
+        params.append(hero)
+    rows = conn.execute(query + " ORDER BY b.id", params).fetchall()
+    return [to_dict(row) for row in rows]
+
+
+def available_heroes(conn: sqlite3.Connection, start: datetime, end: datetime) -> list[dict]:
+    busy = {booking["hero"] for booking in overlapping_bookings(conn, start, end)}
+    rows = conn.execute("SELECT name, power FROM heroes ORDER BY id").fetchall()
+    return [dict(row) for row in rows if row["name"] not in busy]
