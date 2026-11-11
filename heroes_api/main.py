@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
 
@@ -41,6 +42,12 @@ def create_app(db_path: str | None = None) -> FastAPI:
     @app.get("/heroes")
     def list_heroes():
         return [dict(row) for row in conn.execute("SELECT name, power FROM heroes ORDER BY id")]
+
+    @app.get("/heroes/available")
+    def list_available_heroes(start: datetime, end: datetime):
+        if end <= start:
+            raise HTTPException(status_code=422, detail="end must be after start")
+        return bookings.available_heroes(conn, start, end)
 
     @app.post("/bookings", status_code=201)
     def create_booking(booking: BookingIn):
