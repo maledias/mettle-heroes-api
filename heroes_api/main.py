@@ -1,6 +1,9 @@
 import os
+from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from heroes_api import bookings, db
 from heroes_api.invoices import generate_invoice
@@ -42,6 +45,16 @@ def create_app(db_path: str | None = None) -> FastAPI:
     def list_heroes():
         return [dict(row) for row in conn.execute("SELECT name, power FROM heroes ORDER BY id")]
 
+    @app.get("/heroes/available")
+    def available_heroes(start: datetime, end: datetime):
+        if end <= start:
+            raise HTTPException(status_code=422, detail="end must be after start")
+        return bookings.available_heroes(conn, start, end)
+
+    @app.get("/board", response_class=HTMLResponse)
+    def board():
+        return (Path(__file__).parent / "board.html").read_text()
+
     @app.post("/bookings", status_code=201)
     def create_booking(booking: BookingIn):
         try:
@@ -59,4 +72,3 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return generate_invoice(conn, get_client_row(client_id), month)
 
     return app
-

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispatch board</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f4f4f1; color: #1d1d1b; }
+  header { padding: 24px 32px; background: #1d1d1b; color: #fff; }
+  h1 { margin: 0 0 12px; font-size: 22px; }
+  form { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  input { font: inherit; padding: 6px 8px; border-radius: 6px; border: 0; }
+  #summary { margin-left: auto; font-weight: 600; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 32px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; border-left: 8px solid #2e9d5b; }
+  .card.busy { border-left-color: #c8452c; opacity: 0.7; }
+  .name { font-weight: 700; font-size: 17px; }
+  .power { font-size: 13px; color: #555; margin: 6px 0 10px; }
+  .status { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #2e9d5b; }
+  .busy .status { color: #c8452c; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mettle &amp; Co dispatch board</h1>
+  <form id="window">
+    <label>From <input type="datetime-local" id="start" value="2026-12-31T09:00"></label>
+    <label>To <input type="datetime-local" id="end" value="2026-12-31T12:00"></label>
+    <span id="summary"></span>
+  </form>
+</header>
+<main id="heroes"></main>
+<script>
+  async function refresh() {
+    const start = document.getElementById("start").value;
+    const end = document.getElementById("end").value;
+    const query = new URLSearchParams({ start, end });
+    const [heroes, free] = await Promise.all([
+      fetch("/heroes").then(r => r.json()),
+      fetch("/heroes/available?" + query).then(r => r.ok ? r.json() : []),
+    ]);
+    const freeNames = new Set(free.map(h => h.name));
+    const grid = document.getElementById("heroes");
+    grid.replaceChildren(...heroes.map(hero => {
+      const card = document.createElement("div");
+      const isFree = freeNames.has(hero.name);
+      card.className = isFree ? "card" : "card busy";
+      card.innerHTML = '<div class="name"></div><div class="power"></div><div class="status"></div>';
+      card.querySelector(".name").textContent = hero.name;
+      card.querySelector(".power").textContent = hero.power;
+      card.querySelector(".status").textContent = isFree ? "Free" : "Busy";
+      return card;
+    }));
+    document.getElementById("summary").textContent = `${freeNames.size} of ${heroes.length} heroes free`;
+  }
+  document.getElementById("window").addEventListener("change", refresh);
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>
